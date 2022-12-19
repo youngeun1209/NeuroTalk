@@ -1,0 +1,7 @@
+torch==1.10.0
+torchaudio==0.10.0
+numpy
+soundfile
+wavio
+torchmetrics
+matplotlib
