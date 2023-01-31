@@ -497,10 +497,6 @@ def main(args):
     val_loader = torch.utils.data.DataLoader(
         valset, batch_size=args.batch_size, shuffle=True, generator=generator, num_workers=4*len(args.gpuNum), pin_memory=True)
     
-    # testset = myDataset(mode=1, data=args.dataLoc+'/'+args.sub, task=args.task, recon=args.recon)  # file='./EEG_EC_Data_csv/train.txt'
-    # test_loader = torch.utils.data.DataLoader(
-    #     testset, batch_size=args.batch_size, shuffle=False, num_workers=4*len(args.gpuNum), pin_memory=True)
-    
     epoch = 0
     lr_g = 0
     lr_d = 0
@@ -533,13 +529,6 @@ def main(args):
                            ([],[]), 
                            epoch,
                            False)
-        
-        # Te_losses = train(args, test_loader, 
-        #                    (model_g, model_d, vocoder, model_STT, decoder_STT), 
-        #                    (criterion_recon, criterion_ctc, criterion_adv, criterion_cl, CER), 
-        #                    [], 
-        #                    epoch,
-        #                    False)
         
         # Save checkpoint
         state_g = {'arch': str(model_g),
@@ -574,11 +563,11 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Hyperparams')
     parser.add_argument('--vocoder_pre', type=str, default='./pretrained_model/UNIVERSAL_V1/g_02500000', help='pretrained vocoder file path')
-    parser.add_argument('--trained_model', type=str, default='./pretrained_model', help='config for G & D folder path')
-    parser.add_argument('--model_config', type=str, default='./config', help='config for G & D folder path')
+    parser.add_argument('--trained_model', type=str, default='./pretrained_model', help='trained model for G & D folder path')
+    parser.add_argument('--model_config', type=str, default='./models', help='config for G & D folder path')
     # parser.add_argument('--dataLoc', type=str, default='./sample_data')
     parser.add_argument('--dataLoc', type=str, default=fileDir)
-    parser.add_argument('--config', type=str, default='./config/config.json')
+    parser.add_argument('--config', type=str, default='./config.json')
     # parser.add_argument('--save', type=str, default='./TrainResult')
     parser.add_argument('--save', type=str, default=saveDir)
     parser.add_argument('--pretrain', type=bool, default=False)
