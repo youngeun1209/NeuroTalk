@@ -1,0 +1,15 @@
+{
+    "resblock": 1,
+    "adam_b1": 0.8,
+    "adam_b2": 0.99,
+    "lr_decay": 0.999,
+
+    "upsample_rates": [3,2,2],
+    "upsample_kernel_sizes": [6,4,4],
+    "ch_init_upsample": 1024,
+    "resblock_kernel_sizes": [3,7,11],
+    "resblock_dilation_sizes": [[1,3,5], [1,3,5], [1,3,5]],
+    
+    "in_ch": 104,
+    "out_ch": 80  
+}
