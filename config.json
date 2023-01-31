@@ -1,0 +1,24 @@
+{
+    "batch_size": 52,
+    "max_epochs": 1000,
+    
+    "l_g": [1, 0.01, 0.01],
+    "lr_g": 0.0001,
+    "lr_g_decay": 0.999,
+    "l_d": [1,1],
+    "lr_d": 0.0001, 
+    "lr_d_decay": 0.999,
+     
+    "seed": 42,
+                     
+    "max_wav_value": 32768,
+    "sampling_rate": 22050,
+    "n_fft": 1024,
+    "win_length": 1024,
+    "hop_length": 256,
+    "n_mel_channels": 80,
+
+
+    "classname": ["ambulance", "clock", "hello", "helpme", "light", "pain", "stop", "thankyou", "toilet", "TV", "water", "yes", "rest"],
+    "word_label": ["AMBULANCE|", "CLOCK|", "HELLO|", "P|ME|", "LIGHT|", "PAIN|", "STOP|", "THANK|YOU|", "TOILET|", "T|V|", "WATER|", "YES|", ""]
+}
