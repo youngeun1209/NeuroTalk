@@ -135,17 +135,15 @@ def main(args):
 
 if __name__ == '__main__':
     
-    fileDir = '/exSSD/projects/imagined_speech/data/data_vec/CSV0_CSPim/'
-    saveDir = '/exSSD/projects/imagined_speech/learning_logs/log_mel_recon/2023-01-26/'
+    fileDir = './sample_data'
+    saveDir = './TrainResult'
     
     parser = argparse.ArgumentParser(description='Hyperparams')
     parser.add_argument('--vocoder_pre', type=str, default='./pretrained_model/UNIVERSAL_V1/g_02500000', help='pretrained vocoder file path')
     parser.add_argument('--trained_model', type=str, default='./pretrained_model', help='config for G & D folder path')
     parser.add_argument('--model_config', type=str, default='./models', help='config for G & D folder path')
-    # parser.add_argument('--dataLoc', type=str, default='./sample_data')
     parser.add_argument('--dataLoc', type=str, default=fileDir)
     parser.add_argument('--config', type=str, default='./config.json')
-    # parser.add_argument('--save', type=str, default='./TrainResult')
     parser.add_argument('--save', type=str, default=saveDir)
     parser.add_argument('--gpuNum', type=list, default=[0,1,2])
     parser.add_argument('--sub', type=str, default='sub1')
