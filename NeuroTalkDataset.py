@@ -7,11 +7,8 @@ from torch.utils.data import Dataset
 epsilon = np.finfo(float).eps
 
 class myDataset(Dataset):
-    def __init__(self, mode, data="./", task = "SpokenEEG_vec", recon="VoiceMel"):
+    def __init__(self, mode, data="./", task = "SpokenEEG", recon="Y_mel"):
         self.sample_rate = 8000
-        self.lenth = 5 #780 # the number data
-        self.lenthtest = 5 #260
-        self.lenthval = 5 #260
         self.n_classes = 13
         self.mode = mode
         self.iter = iter
@@ -19,6 +16,10 @@ class myDataset(Dataset):
         self.task = task
         self.recon = recon
         self.max_audio = 32768.0
+        self.lenth = len(os.listdir(self.savedata + '/train/Y/')) #780 # the number data
+        self.lenthtest = len(os.listdir(self.savedata + '/test/Y/')) #260
+        self.lenthval = len(os.listdir(self.savedata + '/val/Y/')) #260
+        
 
     def __len__(self):
         if self.mode == 2:
