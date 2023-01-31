@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Conv1d, ConvTranspose1d
 from torch.nn.utils import weight_norm, remove_weight_norm
-from modules import init_weights, get_padding
+from utils import init_weights, get_padding
 import math
 
 LRELU_SLOPE = 0.1
@@ -83,6 +83,7 @@ class Generator(torch.nn.Module):
                    3, 1, 
                    padding=get_padding(3,1)))
         
+        
         self.GRU = nn.GRU(h.ch_init_upsample//2, 
                           h.ch_init_upsample//4, 
                           num_layers=1, 
@@ -125,6 +126,7 @@ class Generator(torch.nn.Module):
         x = self.conv_pre(x)
         x_temp = x
         x = x.transpose(1, 2)
+        self.GRU.flatten_parameters()
         x, _ = self.GRU(x)
         x = x.transpose(1, 2)
         x = torch.cat([x, x_temp], dim=1)
@@ -200,13 +202,19 @@ class Discriminator(torch.nn.Module):
                           batch_first=True, 
                           bidirectional=True)
         
-        # FC Layer aux_classifier
+        self.conv_post = weight_norm(Conv1d(ch, ch, 9, 1, padding=get_padding(9,1)))
+        
+        # FC Layer 
         self.adv_classifier = nn.Sequential(nn.Linear(
             h.ch_init_downsample*2*8*(self.input_size//self.m), 1),
             nn.Sigmoid())
+        self.aux_classifier = nn.Sequential(nn.Linear(
+            h.ch_init_downsample*2*8*(self.input_size//self.m), h.n_classes),
+            nn.Softmax(dim=1))
         
         self.conv_pre.apply(init_weights)
         self.downs.apply(init_weights)
+        self.conv_post.apply(init_weights)
 
     def forward(self, x):
         x = self.conv_pre(x)
@@ -225,6 +233,7 @@ class Discriminator(torch.nn.Module):
         x = F.leaky_relu(x)
         x_temp = x
         x = x.transpose(1, 2)
+        self.GRU.flatten_parameters()
         x, _ = self.GRU(x)
         x = x.transpose(1, 2)
         x = torch.cat([x, x_temp], dim=1)
@@ -234,7 +243,9 @@ class Discriminator(torch.nn.Module):
                    self.ch_init_downsample
                    *2*8*(self.input_size//self.m))
         validity = self.adv_classifier(x)
-        return validity
+        label = self.aux_classifier(x)
+        
+        return validity, label
 
     def remove_weight_norm(self):
         print('Removing weight norm...')
@@ -243,4 +254,5 @@ class Discriminator(torch.nn.Module):
         for l in self.resblocks:
             l.remove_weight_norm()
         remove_weight_norm(self.conv_pre)
+        remove_weight_norm(self.conv_post)
             
