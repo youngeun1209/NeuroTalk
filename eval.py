@@ -2,7 +2,8 @@ import os
 import torch
 from models import models as networks
 from models.models_HiFi import Generator as model_HiFi
-from modules import GreedyCTCDecoder, AttrDict, RMSELoss, save_test_all
+from modules import DTW_align, GreedyCTCDecoder, AttrDict, RMSELoss
+from modules import mel2wav_vocoder, perform_STT
 from utils import data_denorm, word_index
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,8 +16,95 @@ from torchmetrics import CharErrorRate
 import json
 import argparse
 from train import train as eval
+import wavio
 
 
+def save_test_all(args, test_loader, models, save_idx=None):
+    model_g = models[0].eval()
+    # model_d = models[1].eval()
+    vocoder = models[2].eval()
+    model_STT = models[3].eval()
+    decoder_STT = models[4]
+    
+    save_idx=0
+    for i, (input, target, target_cl, voice, data_info) in enumerate(test_loader):
+            
+        input = input.cuda()
+        target = target.cuda()
+        voice = torch.squeeze(voice,dim=-1).cuda()
+        labels = torch.argmax(target_cl,dim=1)    
+        
+        with torch.no_grad():
+            # run the mdoel
+            output = model_g(input)
+            mel_out = DTW_align(output,target)
+    
+        target = data_denorm(target, data_info[0], data_info[1])
+        mel_out = data_denorm(mel_out, data_info[0], data_info[1])
+        
+        gt_label=[]
+        for k in range(len(target)):
+            gt_label.append(args.word_label[labels[k].item()])
+            
+        wav_target = mel2wav_vocoder(target, vocoder, 1)
+        wav_recon = mel2wav_vocoder(mel_out, vocoder, 1)
+        
+        wav_target = torch.reshape(wav_target, (len(wav_target),wav_target.shape[-1]))
+        wav_recon = torch.reshape(wav_recon, (len(wav_recon),wav_recon.shape[-1]))
+        
+        wav_target = torchaudio.functional.resample(wav_target, args.sample_rate_mel, args.sample_rate_STT)  
+        wav_recon = torchaudio.functional.resample(wav_recon, args.sample_rate_mel, args.sample_rate_STT)  
+        
+        if wav_target.shape[1] !=  voice.shape[1]:
+            p = voice.shape[1] - wav_target.shape[1]
+            p_s = p//2
+            p_e = p-p_s
+            wav_target = F.pad(wav_target, (p_s,p_e))
+            
+        if wav_recon.shape[1] !=  voice.shape[1]:
+            p = voice.shape[1] - wav_recon.shape[1]
+            p_s = p//2
+            p_e = p-p_s
+            wav_recon = F.pad(wav_recon, (p_s,p_e))
+            
+        ##### STT Wav2Vec 2.0
+        transcript_recon = perform_STT(wav_recon, model_STT, decoder_STT, gt_label, 1)
+        
+        wav_target = wav_target.cpu().detach().numpy()
+        wav_recon = wav_recon.cpu().detach().numpy()
+        voice = voice.cpu().detach().numpy()
+        
+        for batch_idx in range(len(input)):
+            
+            str_tar = args.word_label[labels[batch_idx].item()].replace("|", ",")
+            str_tar = str_tar.replace(" ", ",")
+            
+            str_pred = transcript_recon[batch_idx].replace("|", ",")
+            str_pred = str_pred.replace(" ", ",")
+
+            # Audio save 
+            if args.task[0] == 'I':
+                title = "Recon_IM_{}-pred_{}".format(str_tar, str_pred)
+                wavio.write(args.savevoice + "/" + "%03d_"%(save_idx+1) + title + ".wav", 
+                            wav_recon[batch_idx], args.sample_rate_STT, sampwidth=1)
+                
+            else:
+                title = "Recon_SP_{}-pred_{}".format(str_tar, str_pred)
+            
+                wavio.write(args.savevoice + "/" + "%03d_"%(save_idx+1) + title + ".wav", 
+                            wav_recon[batch_idx], args.sample_rate_STT, sampwidth=1)
+        
+                title = "Target"
+                
+                wavio.write(args.savevoice + "/" + "%03d_"%(save_idx+1) + title + ".wav", 
+                            wav_target[batch_idx], args.sample_rate_STT, sampwidth=1)
+                
+                title = "Original"
+                
+                wavio.write(args.savevoice + "/" + "%03d_"%(save_idx+1) + title + ".wav", 
+                            voice[batch_idx], args.sample_rate_STT, sampwidth=1)
+            save_idx=save_idx+1
+            
 def main(args):
     
     device = torch.device(f'cuda:{args.gpuNum[0]}' if torch.cuda.is_available() else "cpu")
@@ -80,14 +168,14 @@ def main(args):
     if os.path.isfile(loc_g):
         print("=> loading checkpoint '{}'".format(loc_g))
         checkpoint_g = torch.load(loc_g, map_location='cpu')
-        model_g.load_state_dict(checkpoint_g['model_state_dict'])
+        model_g.load_state_dict(checkpoint_g['state_dict'])
     else:
         print("=> no checkpoint found at '{}'".format(loc_g))
         
     if os.path.isfile(loc_d):   
         print("=> loading checkpoint '{}'".format(loc_d))
         checkpoint_d = torch.load(loc_d, map_location='cpu')
-        model_d.load_state_dict(checkpoint_d['model_state_dict'])
+        model_d.load_state_dict(checkpoint_d['state_dict'])
     else:
         print("=> no checkpoint found at '{}'".format(loc_d))
         
@@ -145,7 +233,8 @@ if __name__ == '__main__':
     parser.add_argument('--dataLoc', type=str, default=fileDir)
     parser.add_argument('--config', type=str, default='./config.json')
     parser.add_argument('--save', type=str, default=saveDir)
-    parser.add_argument('--gpuNum', type=list, default=[0,1,2])
+    parser.add_argument('--gpuNum', type=list, default=[2])
+    parser.add_argument('--batch_size', type=int, default=13)
     parser.add_argument('--sub', type=str, default='sub1')
     parser.add_argument('--task', type=str, default='SpokenEEG')
     parser.add_argument('--recon', type=str, default='Y_mel')

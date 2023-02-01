@@ -30,40 +30,7 @@ def data_denorm(data, avg, std):
        
     return data
 
-def mel2wav_vocoder(mel, vocoder, mini_batch=2):
-    waves = []
-    for j in range(len(mel)//mini_batch):
-        wave_ = vocoder(mel[mini_batch*j:mini_batch*j+mini_batch])
-        waves.append(wave_.cpu().detach().numpy())
-    wav_recon = torch.Tensor(np.array(waves)).cuda()
-    wav_recon = torch.reshape(wav_recon, (len(mel),wav_recon.shape[-1]))
-    
-    return wav_recon
 
-
-def perform_STT(wave, model_STT, decoder_STT, gt_label, mini_batch=2):
-    # model STT
-    emission = []
-    with torch.inference_mode():
-        for j in range(len(wave)//mini_batch):
-            em_, _ = model_STT(wave[mini_batch*j:mini_batch*j+mini_batch])
-            emission.append(em_.cpu().detach().numpy())
-    emission_recon = torch.Tensor(np.array(emission)).cuda()
-    emission_recon = torch.reshape(emission_recon, (len(wave),emission_recon.shape[-2],emission_recon.shape[-1]))
-    
-    # decoder STT
-    transcripts = []
-    # corr_num=0
-    for j in range(len(wave)):
-        transcript = decoder_STT(emission_recon[j])    
-        transcripts.append(transcript)
-        
-    #     if transcript == gt_label[j]:
-    #         corr_num = corr_num + 1
-
-    # acc_word = corr_num / len(wave)
-        
-    return transcripts#, emission_recon, acc_word
 
 def plot_spectrogram(spectrogram):
     fig, ax = plt.subplots(figsize=(10, 2))
@@ -117,23 +84,4 @@ def get_padding(kernel_size, dilation=1):
     return int((kernel_size*dilation - dilation)/2)
 
 
-def load_checkpoint(filepath, device):
-    assert os.path.isfile(filepath)
-    print("Loading '{}'".format(filepath))
-    checkpoint_dict = torch.load(filepath, map_location=device)
-    print("Complete.")
-    return checkpoint_dict
 
-
-def save_checkpoint(filepath, obj):
-    print("Saving checkpoint to {}".format(filepath))
-    torch.save(obj, filepath)
-    print("Complete.")
-
-
-def scan_checkpoint(cp_dir, prefix):
-    pattern = os.path.join(cp_dir, prefix + '????????')
-    cp_list = glob.glob(pattern)
-    if len(cp_list) == 0:
-        return None
-    return sorted(cp_list)[-1]

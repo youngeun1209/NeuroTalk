@@ -2,7 +2,8 @@ import os
 import torch
 from models import models as networks
 from models.models_HiFi import Generator as model_HiFi
-from modules import DTW_align, GreedyCTCDecoder, AttrDict, RMSELoss, saveVoice, save_checkpoint
+from modules import DTW_align, GreedyCTCDecoder, AttrDict, RMSELoss, save_checkpoint
+from modules import mel2wav_vocoder, perform_STT
 from utils import data_denorm, word_index
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,6 +15,7 @@ import torchaudio
 from torchmetrics import CharErrorRate
 import json
 import argparse
+import wavio
 
     
 def train(args, train_loader, models, criterions, optimizers, epoch, trainValid=True):
@@ -190,7 +192,6 @@ def train_G(args, input, target, voice, labels, models, criterions, optimizer_g,
         model_d.eval()
         vocoder.eval()
         model_STT.eval()
-        
     
     # Adversarial ground truths 1:real, 0: fake
     valid = torch.ones((len(input), 1), dtype=torch.float32).cuda()
@@ -212,17 +213,18 @@ def train_G(args, input, target, voice, labels, models, criterions, optimizer_g,
         # set zero grad    
         optimizer_g.zero_grad()
         
-        # run models
+        # Run Generator
         output = model_g(input)
-        g_valid, _ = model_d(output)
     else:
         with torch.no_grad():
+            # run generator
             output = model_g(input)
-            g_valid, _ = model_d(output)
-        
-    # when not overt, DTW is needed
-    mel_out = output.clone()
-    mel_out = DTW_align(mel_out, target)
+    
+    # DTW
+    mel_out = DTW_align(output, target)
+    
+    # Run Discriminator
+    g_valid, _ = model_d(mel_out)
     
     # generator loss
     loss_recon = criterion_recon(mel_out, target)
@@ -249,7 +251,7 @@ def train_G(args, input, target, voice, labels, models, criterions, optimizer_g,
         gt_length.append(args.word_length[labels[j].item()])
     gt_label_idx = torch.tensor(np.array(gt_label_idx),dtype=torch.int64)
     gt_length = torch.tensor(gt_length,dtype=torch.int64)
-
+    
     # target
     ##### HiFi-GAN
     wav_target = vocoder(target_denorm)
@@ -285,7 +287,6 @@ def train_G(args, input, target, voice, labels, models, criterions, optimizer_g,
     emission_recon_ = emission_recon.log_softmax(2)
     loss_ctc = criterion_ctc(emission_recon_.transpose(0, 1), gt_label_idx, input_lengths, gt_length) 
     
-    
     # total generator loss
     loss_g = args.l_g[0] * loss_recon + args.l_g[1] * loss_valid + args.l_g[2] * loss_ctc
 
@@ -303,27 +304,24 @@ def train_G(args, input, target, voice, labels, models, criterions, optimizer_g,
     cer_gt = CER(transcript_gt, gt_label)
     cer_recon = CER(transcript_recon, gt_label)
 
-
     if trainValid:
         loss_g.backward() 
         optimizer_g.step()
     
     e_loss_g = (loss_g.item(), loss_recon.item(), loss_valid.item(), loss_ctc.item())
     e_acc_g = (acc_g_valid.item(), cer_gt.item(), cer_recon.item())
-        
+    
     return mel_out, e_loss_g, e_acc_g
-  
+      
     
 def train_D(args, mel_out, target, target_cl, labels, models, criterions, optimizer_d, trainValid):
     
-    (model_g, model_d, _, _, _) = models
+    (_, model_d, _, _, _) = models
     (_, _, criterion_adv, criterion_cl, _) =  criterions
 
     if trainValid:
-        model_g.train()
         model_d.train()
     else:
-        model_g.eval()
         model_d.eval()
     
     # Adversarial ground truths 1:real, 0: fake
@@ -335,9 +333,6 @@ def train_D(args, mel_out, target, target_cl, labels, models, criterions, optimi
     ###############################
     
     if trainValid:
-        for p in model_g.parameters():
-            p.requires_grad_(False)  # freeze G
-            
         if args.pretrain and args.prefreeze:
             for total_ct, _ in enumerate(model_d.children()):
                 ct=0
@@ -376,13 +371,61 @@ def train_D(args, mel_out, target, target_cl, labels, models, criterions, optimi
     if trainValid:
         loss_d.backward()
         optimizer_d.step()
-                
+
     e_loss_d = (loss_d.item(), loss_d_valid.item(), loss_d_cl.item())
     e_acc_d = (acc_d_real.item(), acc_d_fake.item(), acc_cl_real.item(), acc_cl_fake.item())
     
     return e_loss_d, e_acc_d
 
 
+def saveVoice(args, test_loader, models, epoch, losses):
+    
+    model_g = models[0].eval()
+    # model_d = models[1].eval()
+    vocoder = models[2].eval()
+    model_STT = models[3].eval()
+    decoder_STT = models[4]
+
+    input, target, target_cl, voice, data_info = next(iter(test_loader))   
+    
+    input = input.cuda()
+    target = target.cuda()
+    voice = torch.squeeze(voice,dim=-1).cuda()
+    labels = torch.argmax(target_cl,dim=1)    
+    
+    with torch.no_grad():
+        # run the mdoel
+        output = model_g(input)
+    
+    mel_out = DTW_align(output, target)
+    output_denorm = data_denorm(mel_out, data_info[0], data_info[1])
+    
+    wav_recon = mel2wav_vocoder(torch.unsqueeze(output_denorm[0],dim=0), vocoder, 1)
+    wav_recon = torch.reshape(wav_recon, (len(wav_recon),wav_recon.shape[-1]))
+    
+    wav_recon = torchaudio.functional.resample(wav_recon, args.sample_rate_mel, args.sample_rate_STT)  
+    if wav_recon.shape[1] !=  voice.shape[1]:
+        p = voice.shape[1] - wav_recon.shape[1]
+        p_s = p//2
+        p_e = p-p_s
+        wav_recon = F.pad(wav_recon, (p_s,p_e))
+        
+    ##### STT Wav2Vec 2.0
+    gt_label = args.word_label[labels[0].item()]
+    
+    transcript_recon = perform_STT(wav_recon, model_STT, decoder_STT, gt_label, 1)
+    
+    # save
+    wav_recon = wav_recon.cpu().detach().numpy()
+    
+    str_tar = args.word_label[labels[0].item()].replace("|", ",")
+    str_tar = str_tar.replace(" ", ",")
+    
+    str_pred = transcript_recon[0].replace("|", ",")
+    str_pred = str_pred.replace(" ", ",")
+    
+    title = "Tar_{}-Pred_{}".format(str_tar, str_pred)
+    wavio.write(args.savevoice + '/e{}_{}.wav'.format(str(str(epoch)), title), wav_recon, args.sample_rate_STT, sampwidth=1)
 
 
 def main(args):
@@ -571,6 +614,7 @@ if __name__ == '__main__':
     parser.add_argument('--pretrain', type=bool, default=False)
     parser.add_argument('--prefreeze', type=bool, default=False)
     parser.add_argument('--gpuNum', type=list, default=[0,1,2])
+    parser.add_argument('--batch_size', type=int, default=52) 
     parser.add_argument('--sub', type=str, default='sub1')
     parser.add_argument('--task', type=str, default='SpokenEEG')
     parser.add_argument('--recon', type=str, default='Y_mel')
