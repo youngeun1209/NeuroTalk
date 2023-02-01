@@ -33,9 +33,9 @@ python eval.py pretrained_model/ImaginedEEG/ pretrained_model/UNIVERSAL_V1/g_025
 
 ## Demo page
 - [Demo page](https://neurotalk.github.io/demo/neurotalk.html)
-- 
-## Pre-trained Models
 
+
+## Pre-trained Models
 You can download pretrained models here:
 - [Pretrained model](https://drive.google.com/drive/folders/1x6GNHzAQkqL5eQmIcPTjVPb9D5dtx02W?usp=sharing) trained on participant 1
 
