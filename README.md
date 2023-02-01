@@ -39,7 +39,8 @@ python eval.py pretrained_model/ImaginedEEG/ pretrained_model/UNIVERSAL_V1/g_025
 You can download pretrained models here:
 - [Pretrained model](https://drive.google.com/drive/folders/1x6GNHzAQkqL5eQmIcPTjVPb9D5dtx02W?usp=sharing) trained on participant 1
 
-
+## Citation
+Y.-E. Lee, S.-H. Lee, S.-H Kim, and S.-W. Lee, "Towards Voice Reconstruction from EEG during Imagined Speech," AAAI Conference on Artificial Intelligence (AAAI), 2023.
 
 ## Contributing
 - We propose a generative model based on multi-receptive residual modules with recurrent neural networks that can extract frequency characteristics and sequential information from neural signals, to generate speech from non-invasive brain signals.
