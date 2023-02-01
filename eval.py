@@ -37,7 +37,8 @@ def save_test_all(args, test_loader, models, save_idx=None):
         with torch.no_grad():
             # run the mdoel
             output = model_g(input)
-            mel_out = DTW_align(output,target)
+        
+        mel_out = DTW_align(output,target)
     
         target = data_denorm(target, data_info[0], data_info[1])
         mel_out = data_denorm(mel_out, data_info[0], data_info[1])
