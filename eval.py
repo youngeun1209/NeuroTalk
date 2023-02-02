@@ -187,7 +187,7 @@ def main(args):
     criterion_cl = nn.CrossEntropyLoss().cuda()
     CER = CharErrorRate().cuda()
     
-    saveDir = args.save + '_' + args.sub + '_' + args.task
+    saveDir = args.save + args.sub + '_' + args.task
     # create the directory if not exist
     if not os.path.exists(saveDir):
         os.mkdir(saveDir)
