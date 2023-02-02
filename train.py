@@ -416,7 +416,7 @@ def saveVoice(args, test_loader, models, epoch, losses):
     transcript_recon = perform_STT(wav_recon, model_STT, decoder_STT, gt_label, 1)
     
     # save
-    wav_recon = wav_recon.cpu().detach().numpy()
+    wav_recon = np.squeeze(wav_recon.cpu().detach().numpy())
     
     str_tar = args.word_label[labels[0].item()].replace("|", ",")
     str_tar = str_tar.replace(" ", ",")
