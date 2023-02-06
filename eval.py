@@ -162,14 +162,29 @@ def main(args):
     vocoder = nn.DataParallel(vocoder, device_ids=args.gpuNum)
     model_STT = nn.DataParallel(model_STT, device_ids=args.gpuNum)
 
+    criterion_recon = RMSELoss().cuda()
+    criterion_adv = nn.BCELoss().cuda()
+    criterion_ctc = nn.CTCLoss().cuda()
+    criterion_cl = nn.CrossEntropyLoss().cuda()
+    CER = CharErrorRate().cuda()
 
-    loc_g = os.path.join(args.trained_model, args.task, 'checkpoint_g.pth')
-    loc_d = os.path.join(args.trained_model, args.task, 'checkpoint_d.pth')
-    
+    saveDir = args.logDir + args.sub + '_' + args.task
+    # create the directory if not exist
+    if not os.path.exists(saveDir):
+        os.mkdir(saveDir)
+
+    args.savevoice = saveDir + '/savevoice'
+    if not os.path.exists(args.savevoice):
+        os.mkdir(args.savevoice)
+
+    loc_g = os.path.join(saveDir, 'savemodel', 'BEST_checkpoint_g.pth')
+    loc_d = os.path.join(saveDir, 'savemodel', 'BEST_checkpoint_d.pth')
+
     if os.path.isfile(loc_g):
         print("=> loading checkpoint '{}'".format(loc_g))
         checkpoint_g = torch.load(loc_g, map_location='cpu')
         model_g.load_state_dict(checkpoint_g['state_dict'])
+        print('Load {}th epoch model'.format(checkpoint_g['epoch']))
     else:
         print("=> no checkpoint found at '{}'".format(loc_g))
         
@@ -177,38 +192,20 @@ def main(args):
         print("=> loading checkpoint '{}'".format(loc_d))
         checkpoint_d = torch.load(loc_d, map_location='cpu')
         model_d.load_state_dict(checkpoint_d['state_dict'])
+        print('Load {}th epoch model'.format(checkpoint_d['epoch']))
     else:
         print("=> no checkpoint found at '{}'".format(loc_d))
-        
-
-    criterion_recon = RMSELoss().cuda()
-    criterion_adv = nn.BCELoss().cuda()
-    criterion_ctc = nn.CTCLoss().cuda()
-    criterion_cl = nn.CrossEntropyLoss().cuda()
-    CER = CharErrorRate().cuda()
-    
-    saveDir = args.save + args.sub + '_' + args.task
-    # create the directory if not exist
-    if not os.path.exists(saveDir):
-        os.mkdir(saveDir)
-    
-    args.savevoice = saveDir + '/savevoice'
-    if not os.path.exists(args.savevoice):
-        os.mkdir(args.savevoice)
-        
 
     # Data loader define
     testset = myDataset(mode=1, data=args.dataLoc+'/'+args.sub, task=args.task, recon=args.recon)  # file='./EEG_EC_Data_csv/train.txt'
     test_loader = torch.utils.data.DataLoader(
         testset, batch_size=args.batch_size, shuffle=False, num_workers=4*len(args.gpuNum), pin_memory=True)
-    
-    max_epochs = 1
+
     epoch = 0
-        
+
     start_time = time.time()
-    
-    print("Epoch : %d/%d" %(epoch, max_epochs) )
-    
+
+    print('Processing Evaluation ...')
     Te_losses = eval(args, test_loader, 
                      (model_g, model_d, vocoder, model_STT, decoder_STT), 
                      (criterion_recon, criterion_ctc, criterion_adv, criterion_cl, CER), 
@@ -223,17 +220,17 @@ def main(args):
     
 
 if __name__ == '__main__':
-    
-    fileDir = './sample_data'
-    saveDir = './TrainResult'
+
+    dataDir = './sample_data'
+    logDir = './TrainResult'
     
     parser = argparse.ArgumentParser(description='Hyperparams')
     parser.add_argument('--vocoder_pre', type=str, default='./pretrained_model/UNIVERSAL_V1/g_02500000', help='pretrained vocoder file path')
     parser.add_argument('--trained_model', type=str, default='./pretrained_model', help='config for G & D folder path')
     parser.add_argument('--model_config', type=str, default='./models', help='config for G & D folder path')
-    parser.add_argument('--dataLoc', type=str, default=fileDir)
+    parser.add_argument('--dataLoc', type=str, default=dataDir)
     parser.add_argument('--config', type=str, default='./config.json')
-    parser.add_argument('--save', type=str, default=saveDir)
+    parser.add_argument('--logDir', type=str, default=logDir)
     parser.add_argument('--gpuNum', type=list, default=[2])
     parser.add_argument('--batch_size', type=int, default=13)
     parser.add_argument('--sub', type=str, default='sub1')

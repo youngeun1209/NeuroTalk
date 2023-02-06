@@ -509,7 +509,7 @@ def main(args):
     criterion_cl = nn.CrossEntropyLoss().cuda()
     CER = CharErrorRate().cuda()
     
-    saveDir = args.save + args.sub + '_' + args.task
+    saveDir = args.logDir + args.sub + '_' + args.task
     # create the directory if not exist
     if not os.path.exists(saveDir):
         os.mkdir(saveDir)
@@ -600,17 +600,17 @@ def main(args):
     
 
 if __name__ == '__main__':
-    
-    fileDir = './sample_data'
-    saveDir = './TrainResult'
+
+    dataDir = './sample_data'
+    logDir = './TrainResult'
     
     parser = argparse.ArgumentParser(description='Hyperparams')
     parser.add_argument('--vocoder_pre', type=str, default='./pretrained_model/UNIVERSAL_V1/g_02500000', help='pretrained vocoder file path')
     parser.add_argument('--trained_model', type=str, default='./pretrained_model', help='trained model for G & D folder path')
     parser.add_argument('--model_config', type=str, default='./models', help='config for G & D folder path')
-    parser.add_argument('--dataLoc', type=str, default=fileDir)
+    parser.add_argument('--dataLoc', type=str, default=dataDir)
     parser.add_argument('--config', type=str, default='./config.json')
-    parser.add_argument('--save', type=str, default=saveDir)
+    parser.add_argument('--logDir', type=str, default=logDir)
     parser.add_argument('--pretrain', type=bool, default=False)
     parser.add_argument('--prefreeze', type=bool, default=False)
     parser.add_argument('--gpuNum', type=list, default=[0,1,2])
