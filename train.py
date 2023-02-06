@@ -16,7 +16,6 @@ from torchmetrics import CharErrorRate
 import json
 import argparse
 import wavio
-
     
 def train(args, train_loader, models, criterions, optimizers, epoch, trainValid=True):
     '''
@@ -500,6 +499,7 @@ def main(args):
 
     # Directory
     saveDir = args.logDir + args.sub + '_' + args.task
+
     # create the directory if not exist
     if not os.path.exists(saveDir):
         os.mkdir(saveDir)
@@ -554,7 +554,7 @@ def main(args):
 
     # Data loader define
     generator = torch.Generator().manual_seed(args.seed)
-    
+
     trainset = myDataset(mode=0, data=args.dataLoc+'/'+args.sub, task=args.task, recon=args.recon)
     train_loader = torch.utils.data.DataLoader(
         trainset, batch_size=args.batch_size, shuffle=True, generator=generator, num_workers=4*len(args.gpuNum), pin_memory=True)
@@ -656,7 +656,6 @@ if __name__ == '__main__':
         t_args = argparse.Namespace()
         t_args.__dict__.update(json.load(f))
         args = parser.parse_args(namespace=t_args)
-
     
     main(args)        
     

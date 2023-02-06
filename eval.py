@@ -198,6 +198,7 @@ def main(args):
     else:
         print("=> no checkpoint found at '{}'".format(loc_d))
 
+
     # Data loader define
     testset = myDataset(mode=1, data=args.dataLoc+'/'+args.sub, task=args.task, recon=args.recon)  # file='./EEG_EC_Data_csv/train.txt'
     test_loader = torch.utils.data.DataLoader(
