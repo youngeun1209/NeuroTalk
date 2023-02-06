@@ -162,12 +162,14 @@ def main(args):
     vocoder = nn.DataParallel(vocoder, device_ids=args.gpuNum)
     model_STT = nn.DataParallel(model_STT, device_ids=args.gpuNum)
 
+    # loss function
     criterion_recon = RMSELoss().cuda()
     criterion_adv = nn.BCELoss().cuda()
     criterion_ctc = nn.CTCLoss().cuda()
     criterion_cl = nn.CrossEntropyLoss().cuda()
     CER = CharErrorRate().cuda()
 
+    # Directory
     saveDir = args.logDir + args.sub + '_' + args.task
     # create the directory if not exist
     if not os.path.exists(saveDir):
@@ -177,8 +179,8 @@ def main(args):
     if not os.path.exists(args.savevoice):
         os.mkdir(args.savevoice)
 
-    loc_g = os.path.join(saveDir, 'savemodel', 'BEST_checkpoint_g.pth')
-    loc_d = os.path.join(saveDir, 'savemodel', 'BEST_checkpoint_d.pth')
+    loc_g = os.path.join(saveDir, 'savemodel', 'BEST_checkpoint_g.pt')
+    loc_d = os.path.join(saveDir, 'savemodel', 'BEST_checkpoint_d.pt')
 
     if os.path.isfile(loc_g):
         print("=> loading checkpoint '{}'".format(loc_g))

@@ -378,7 +378,7 @@ def train_D(args, mel_out, target, target_cl, labels, models, criterions, optimi
     return e_loss_d, e_acc_d
 
 
-def saveVoice(args, test_loader, models, epoch, losses):
+def saveData(args, test_loader, models, epoch, losses):
     
     model_g = models[0].eval()
     # model_d = models[1].eval()
@@ -483,52 +483,75 @@ def main(args):
     model_d = nn.DataParallel(model_d, device_ids=args.gpuNum)
     vocoder = nn.DataParallel(vocoder, device_ids=args.gpuNum)
     model_STT = nn.DataParallel(model_STT, device_ids=args.gpuNum)
-    
 
+    # loss function
+    criterion_recon = RMSELoss().cuda()
+    criterion_adv = nn.BCELoss().cuda()
+    criterion_ctc = nn.CTCLoss().cuda()
+    criterion_cl = nn.CrossEntropyLoss().cuda()
+    CER = CharErrorRate().cuda()
+
+    # optimizer
+    optimizer_g = torch.optim.AdamW(model_g.parameters(), lr=args.lr_g, betas=(0.8, 0.99), weight_decay=0.01)
+    optimizer_d = torch.optim.AdamW(model_d.parameters(), lr=args.lr_d, betas=(0.8, 0.99), weight_decay=0.01)
+
+    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optimizer_g, gamma=args.lr_g_decay, last_epoch=-1)
+    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optimizer_d, gamma=args.lr_d_decay, last_epoch=-1)
+
+    # Directory
+    saveDir = args.logDir + args.sub + '_' + args.task
+    # create the directory if not exist
+    if not os.path.exists(saveDir):
+        os.mkdir(saveDir)
+
+    args.savevoice = saveDir + '/epovoice'
+    if not os.path.exists(args.savevoice):
+        os.mkdir(args.savevoice)
+
+    args.savemodel = saveDir + '/savemodel'
+    if not os.path.exists(args.savemodel):
+        os.mkdir(args.savemodel)
+
+    # Load trained model
+    start_epoch = 0
     if args.pretrain:
-        loc_g = os.path.join(args.trained_model, args.task, 'checkpoint_g.pth')
-        loc_d = os.path.join(args.trained_model, args.task, 'checkpoint_d.pth')
-        
+        loc_g = os.path.join(args.trained_model, 'checkpoint_g.pt')
+        loc_d = os.path.join(args.trained_model, 'checkpoint_d.pt')
+
         if os.path.isfile(loc_g):
             print("=> loading checkpoint '{}'".format(loc_g))
             checkpoint_g = torch.load(loc_g, map_location='cpu')
             model_g.load_state_dict(checkpoint_g['state_dict'])
         else:
             print("=> no checkpoint found at '{}'".format(loc_g))
-            
-        if os.path.isfile(loc_d):   
+
+        if os.path.isfile(loc_d):
+            print("=> loading checkpoint '{}'".format(loc_d))
             checkpoint_d = torch.load(loc_d, map_location='cpu')
             model_d.load_state_dict(checkpoint_d['state_dict'])
         else:
             print("=> no checkpoint found at '{}'".format(loc_d))
-        
 
-    criterion_recon = RMSELoss().cuda()
-    criterion_adv = nn.BCELoss().cuda()
-    criterion_ctc = nn.CTCLoss().cuda()
-    criterion_cl = nn.CrossEntropyLoss().cuda()
-    CER = CharErrorRate().cuda()
-    
-    saveDir = args.logDir + args.sub + '_' + args.task
-    # create the directory if not exist
-    if not os.path.exists(saveDir):
-        os.mkdir(saveDir)
-    
-    args.savevoice = saveDir + '/epovoice'
-    if not os.path.exists(args.savevoice):
-        os.mkdir(args.savevoice)
-        
-    args.savemodel = saveDir + '/savemodel'
-    if not os.path.exists(args.savemodel):
-        os.mkdir(args.savemodel)
+    if args.resume:
+        loc_g = os.path.join(args.savemodel, 'checkpoint_g.pt')
+        loc_d = os.path.join(args.savemodel, 'checkpoint_d.pt')
 
-    optimizer_g = torch.optim.AdamW(model_g.parameters(), lr=args.lr_g, betas=(0.8, 0.99), weight_decay=0.01)
-    optimizer_d = torch.optim.AdamW(model_d.parameters(), lr=args.lr_d, betas=(0.8, 0.99), weight_decay=0.01)
+        if os.path.isfile(loc_g):
+            print("=> loading checkpoint '{}'".format(loc_g))
+            checkpoint_g = torch.load(loc_g, map_location='cpu')
+            model_g.load_state_dict(checkpoint_g['state_dict'])
+            start_epoch = checkpoint_g['epoch'] + 1
+        else:
+            print("=> no checkpoint found at '{}'".format(loc_g))
 
-    scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optimizer_g, gamma=args.lr_g_decay, last_epoch=-1)
-    scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optimizer_d, gamma=args.lr_d_decay, last_epoch=-1)
-    
-    
+        if os.path.isfile(loc_d):
+            print("=> loading checkpoint '{}'".format(loc_d))
+            checkpoint_d = torch.load(loc_d, map_location='cpu')
+            model_d.load_state_dict(checkpoint_d['state_dict'])
+        else:
+            print("=> no checkpoint found at '{}'".format(loc_d))
+
+
     # Data loader define
     generator = torch.Generator().manual_seed(args.seed)
     
@@ -539,14 +562,15 @@ def main(args):
     valset = myDataset(mode=2, data=args.dataLoc+'/'+args.sub, task=args.task, recon=args.recon)
     val_loader = torch.utils.data.DataLoader(
         valset, batch_size=args.batch_size, shuffle=True, generator=generator, num_workers=4*len(args.gpuNum), pin_memory=True)
-    
-    epoch = 0
+
+    epoch = start_epoch
     lr_g = 0
     lr_d = 0
     best_loss = 1000
     is_best = False
+    epochs_since_improvement = 0
     
-    for epoch in range(args.max_epochs):
+    for epoch in range(start_epoch, args.max_epochs):
         
         start_time = time.time()
         
@@ -554,7 +578,10 @@ def main(args):
             lr_g = param_group['lr']
         for param_group in optimizer_d.param_groups:
             lr_d = param_group['lr']
-        
+
+        scheduler_g.step(epoch)
+        scheduler_d.step(epoch)
+
         print("Epoch : %d/%d" %(epoch, args.max_epochs) )
         print("Learning rate for G: %.9f" %lr_g)
         print("Learning rate for D: %.9f" %lr_d)
@@ -586,15 +613,18 @@ def main(args):
         loss_total =  Val_losses[0]
         is_best = loss_total < best_loss
         best_loss = min(loss_total, best_loss)
-        
-        save_checkpoint(state_g, is_best, args.savemodel, 'checkpoint_g.pth')
-        save_checkpoint(state_d, is_best, args.savemodel, 'checkpoint_d.pth')
-        
-        saveVoice(args, val_loader, (model_g, model_d, vocoder, model_STT, decoder_STT), epoch, (Tr_losses,Val_losses))
-        
-        scheduler_g.step(epoch)
-        scheduler_d.step(epoch)
-        
+
+        if not is_best:
+            epochs_since_improvement += 1
+            print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
+        else:
+            epochs_since_improvement = 0
+
+        save_checkpoint(state_g, is_best, args.savemodel, 'checkpoint_g.pt')
+        save_checkpoint(state_d, is_best, args.savemodel, 'checkpoint_d.pt')
+
+        saveData(args, val_loader, (model_g, model_d, vocoder, model_STT, decoder_STT), epoch, (Tr_losses,Val_losses))
+
         time_taken = time.time() - start_time
         print("Time: %.2f\n"%time_taken)
     
