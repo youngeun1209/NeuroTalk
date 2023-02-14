@@ -641,6 +641,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataLoc', type=str, default=dataDir)
     parser.add_argument('--config', type=str, default='./config.json')
     parser.add_argument('--logDir', type=str, default=logDir)
+    parser.add_argument('--resume', type=bool, default=True)
     parser.add_argument('--pretrain', type=bool, default=False)
     parser.add_argument('--prefreeze', type=bool, default=False)
     parser.add_argument('--gpuNum', type=list, default=[0,1,2])
