@@ -454,7 +454,7 @@ def main(args):
     device = torch.device(f'cuda:{args.gpuNum[0]}' if torch.cuda.is_available() else "cpu")
     torch.cuda.set_device(device) # change allocation of current GPU
     print ('Current cuda device ', torch.cuda.current_device()) # check
-    print(torch.cuda.device_count())
+    print('The number of available GPU:{}'.format(torch.cuda.device_count()))
     
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -534,7 +534,11 @@ def main(args):
     args.savemodel = saveDir + '/savemodel'
     if not os.path.exists(args.savemodel):
         os.mkdir(args.savemodel)
-
+        
+    args.logs = saveDir + '/logs'
+    if not os.path.exists(args.logs):
+        os.mkdir(args.logs)
+        
     # Load trained model
     start_epoch = 0
     if args.pretrain:
