@@ -16,6 +16,8 @@ from torchmetrics import CharErrorRate
 import json
 import argparse
 import wavio
+from torch.utils.tensorboard import SummaryWriter
+
     
 def train(args, train_loader, models, criterions, optimizers, epoch, trainValid=True):
     '''
@@ -165,6 +167,26 @@ def train(args, train_loader, models, criterions, optimizers, epoch, trainValid=
     args.acc_d_fake_ns = sum(epoch_acc_d_ns[:,1]) / len(epoch_acc_d_ns[:,1])
     args.acc_cl_real_ns = sum(epoch_acc_d_ns[:,2]) / len(epoch_acc_d_ns[:,2])
     args.acc_cl_fake_ns = sum(epoch_acc_d_ns[:,3]) / len(epoch_acc_d_ns[:,3])
+    
+    # tensorboard
+    if trainValid:
+        tag = 'train'
+    else:
+        tag = 'valid'
+        
+    args.writer.add_scalar("Loss_G/{}".format(tag), args.loss_g, epoch)
+    args.writer.add_scalar("CER/{}".format(tag), args.cer_recon, epoch)
+    args.writer.add_scalar("ACC_G/{}".format(tag), args.acc_g_cl, epoch)
+    
+    args.writer.add_scalar("Loss_G_recon/{}".format(tag), args.loss_g_recon, epoch)
+    args.writer.add_scalar("Loss_G_valid/{}".format(tag), args.loss_g_valid, epoch)
+    args.writer.add_scalar("Loss_G_ctc/{}".format(tag), args.loss_g_ctc, epoch)
+    
+    args.writer.add_scalar("Loss_D_real/{}".format(tag), args.loss_d_real, epoch)
+    args.writer.add_scalar("Loss_D_fake/{}".format(tag), args.loss_d_fake, epoch)
+    
+    args.writer.add_scalar("Loss_G_unseen/{}".format(tag), args.loss_g_ns, epoch)
+    args.writer.add_scalar("CER_unseen/{}".format(tag), args.cer_recon_ns, epoch)
 
     print('\n[%3d/%3d] G_valid: %.4f D_R: %.4f D_F: %.4f / CER-gt: %.4f CER-recon: %.4f / g-RMSE: %.4f g-lossValid: %.4f g-lossCTC: %.4f' 
           % (i, total_batches, 
@@ -497,10 +519,11 @@ def main(args):
     scheduler_g = torch.optim.lr_scheduler.ExponentialLR(optimizer_g, gamma=args.lr_g_decay, last_epoch=-1)
     scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optimizer_d, gamma=args.lr_d_decay, last_epoch=-1)
 
-    # Directory
+   # create the directory if not exist
+    if not os.path.exists(args.logDir):
+        os.mkdir(args.logDir)
+        
     saveDir = args.logDir + args.sub + '_' + args.task
-
-    # create the directory if not exist
     if not os.path.exists(saveDir):
         os.mkdir(saveDir)
 
@@ -551,7 +574,9 @@ def main(args):
         else:
             print("=> no checkpoint found at '{}'".format(loc_d))
 
-
+    # Tensorboard setting
+    args.writer = SummaryWriter(args.logs)
+    
     # Data loader define
     generator = torch.Generator().manual_seed(args.seed)
 
@@ -627,7 +652,8 @@ def main(args):
 
         time_taken = time.time() - start_time
         print("Time: %.2f\n"%time_taken)
-    
+        
+    args.writer.flush()
 
 if __name__ == '__main__':
 
