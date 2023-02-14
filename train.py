@@ -453,7 +453,7 @@ def main(args):
     
     device = torch.device(f'cuda:{args.gpuNum[0]}' if torch.cuda.is_available() else "cpu")
     torch.cuda.set_device(device) # change allocation of current GPU
-    print ('Current cuda device ', torch.cuda.current_device()) # check
+    print ('Current cuda device: {} '.format(torch.cuda.current_device())) # check
     print('The number of available GPU:{}'.format(torch.cuda.device_count()))
     
     np.random.seed(args.seed)
