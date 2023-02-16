@@ -632,10 +632,12 @@ def main(args):
         # Save checkpoint
         state_g = {'arch': str(model_g),
                  'state_dict': model_g.state_dict(),
+                 'epoch': epoch,
                  'optimizer_state_dict': optimizer_g.state_dict()}
         
         state_d = {'arch': str(model_d),
                  'state_dict': model_d.state_dict(),
+                 'epoch': epoch,
                  'optimizer_state_dict': optimizer_d.state_dict()}
         
         # Did validation loss improve?
