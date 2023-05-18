@@ -7,11 +7,11 @@ Five test data were provided, including the words 'yes', 'hello', 'help me', 'wa
 ### Infer
 To evaluate the trained model for spoken EEG on an example data, run:
 ```eval
-python eval.py pretrained_model/SpokenEEG/ pretrained_model/UNIVERSAL_V1/g_02500000 --task SpokenEEG_vec --batch_size 5
+python eval.py --trained_model pretrained_model/SpokenEEG/ --vocoder_pre pretrained_model/UNIVERSAL_V1/g_02500000 --task SpokenEEG_vec --batch_size 5
 ```
 To evaluate the trained model for Imagined EEG on an example data, run:
 ```eval
-python eval.py pretrained_model/ImaginedEEG/ pretrained_model/UNIVERSAL_V1/g_02500000 --task ImaginedEEG_vec --batch_size 5
+python eval.py --trained_model pretrained_model/ImaginedEEG/ --vocoder_pre pretrained_model/UNIVERSAL_V1/g_02500000 --task ImaginedEEG_vec --batch_size 5
 ```
 
 > You can infer the model with this sample data based on pretrained model
