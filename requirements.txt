@@ -1,6 +1,6 @@
-torch==1.13.1
-torchaudio==0.13.1
-numpy==1.21
+torch==1.11.0
+torchaudio==0.11.0
+numpy==1.21.6
 soundfile
 wavio==0.0.4
 torchmetrics==0.8.2
@@ -9,7 +9,7 @@ librosa==0.9.1
 numba==0.55.1
 resampy==0.2.2
 inflect
-tensorboard==2.11.1
-tensorflow==2.11.1
+tensorboard==2.10.1
+tensorflow==2.10.0
 argparse
 unidecode
