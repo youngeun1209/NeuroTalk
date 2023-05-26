@@ -1,5 +1,9 @@
 # NeuroTalk: Voice Reconstruction from Brain Signals
-This repository is the official implementation of Towards Voice Reconstruction from EEG during Imagined Speech
+This repository is the official implementation of Towards Voice Reconstruction from EEG during Imagined Speech.
+This paper is published in AAAI 2023.
+
+## Citation
+Y.-E. Lee, S.-H. Lee, S.-H Kim, and S.-W. Lee, "Towards Voice Reconstruction from EEG during Imagined Speech," AAAI Conference on Artificial Intelligence (AAAI), 2023.
 
 ## Requirements
 All algorithm are developed in Python 3.8.
