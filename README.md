@@ -35,7 +35,7 @@ python eval.py --trained_model pretrained_model/ImaginedEEG/ --vocoder_pre pretr
 ```
 
 ## Demo page
-- [Demo page](https://neurotalk.github.io/demo/neurotalk.html)
+- [Demo page](https://neurotalk.github.io/demo)
 
 
 ## Pre-trained Models
