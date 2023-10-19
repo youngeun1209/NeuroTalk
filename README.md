@@ -15,7 +15,9 @@ pip install -r requirements.txt
 ```
 
 Vector Embedding needs BBCI toolbox in MATLAB.
+
 You can download here:
+
 https://github.com/bbci/bbci_public
 
 ## Training
