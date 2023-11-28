@@ -19,7 +19,7 @@ import wavio
 from torch.utils.tensorboard import SummaryWriter
 
     
-def train(args, train_loader, models, criterions, optimizers, epoch, trainValid=True):
+def train(args, train_loader, models, criterions, optimizers, epoch, trainValid=True, inference=False):
     '''
     :param args: general arguments
     :param train_loader: loaded for training/validation/test dataset
@@ -174,28 +174,29 @@ def train(args, train_loader, models, criterions, optimizers, epoch, trainValid=
     else:
         tag = 'valid'
         
-    args.writer.add_scalar("Loss_G/{}".format(tag), args.loss_g, epoch)
-    args.writer.add_scalar("CER/{}".format(tag), args.cer_recon, epoch)
-    args.writer.add_scalar("ACC_G/{}".format(tag), args.acc_g_cl, epoch)
-    
-    args.writer.add_scalar("Loss_G_recon/{}".format(tag), args.loss_g_recon, epoch)
-    args.writer.add_scalar("Loss_G_valid/{}".format(tag), args.loss_g_valid, epoch)
-    args.writer.add_scalar("Loss_G_ctc/{}".format(tag), args.loss_g_ctc, epoch)
-    
-    args.writer.add_scalar("Loss_D_real/{}".format(tag), args.loss_d_real, epoch)
-    args.writer.add_scalar("Loss_D_fake/{}".format(tag), args.loss_d_fake, epoch)
-    
-    args.writer.add_scalar("Loss_G_unseen/{}".format(tag), args.loss_g_ns, epoch)
-    args.writer.add_scalar("CER_unseen/{}".format(tag), args.cer_recon_ns, epoch)
+    if not inference:
+        args.writer.add_scalar("Loss_G/{}".format(tag), args.loss_g, epoch)
+        args.writer.add_scalar("CER/{}".format(tag), args.cer_recon, epoch)
+        
+        args.writer.add_scalar("Loss_G_recon/{}".format(tag), args.loss_g_recon, epoch)
+        args.writer.add_scalar("Loss_G_valid/{}".format(tag), args.loss_g_valid, epoch)
+        args.writer.add_scalar("Loss_G_ctc/{}".format(tag), args.loss_g_ctc, epoch)
+        
+        args.writer.add_scalar("ACC_D_real/{}".format(tag), args.acc_d_real, epoch)
+        args.writer.add_scalar("ACC_D_fake/{}".format(tag), args.acc_d_fake, epoch)
+        
+        args.writer.add_scalar("Loss_G_unseen/{}".format(tag), args.loss_g_ns, epoch)
+        args.writer.add_scalar("CER_unseen/{}".format(tag), args.cer_recon_ns, epoch)
 
-    print('\n[%3d/%3d] G_valid: %.4f D_R: %.4f D_F: %.4f / CER-gt: %.4f CER-recon: %.4f / g-RMSE: %.4f g-lossValid: %.4f g-lossCTC: %.4f' 
+    print('\n[%3d/%3d] CER-gt: %.4f CER-recon: %.4f / ACC_R: %.4f ACC_F: %.4f / g-RMSE: %.4f g-lossValid: %.4f g-lossCTC: %.4f' 
           % (i, total_batches, 
-             args.acc_g_valid, args.acc_d_real, args.acc_d_fake, 
              args.cer_gt, args.cer_recon, 
+             args.acc_d_real, args.acc_d_fake, 
              args.loss_g_recon, args.loss_g_valid, args.loss_g_ctc))
         
         
-    return (args.loss_g, args.loss_g_recon, args.loss_g_valid, args.loss_g_ctc, args.acc_g_valid, args.cer_gt, args.cer_recon, args.loss_d, args.acc_d_real, args.acc_d_fake, args.acc_d_fake)
+    return (args.loss_g, args.loss_g_recon, args.loss_g_valid, args.loss_g_ctc, args.acc_g_valid, args.cer_gt, args.cer_recon, 
+            args.loss_d, args.acc_d_real, args.acc_d_fake)
 
 
 def train_G(args, input, target, voice, labels, models, criterions, optimizer_g, data_info, trainValid):
@@ -242,7 +243,8 @@ def train_G(args, input, target, voice, labels, models, criterions, optimizer_g,
             output = model_g(input)
     
     # DTW
-    mel_out = DTW_align(output, target)
+    mel_out = output.clone()
+    mel_out = DTW_align(mel_out, target)
     
     # Run Discriminator
     g_valid, _ = model_d(mel_out)
@@ -523,7 +525,11 @@ def main(args):
     if not os.path.exists(args.logDir):
         os.mkdir(args.logDir)
         
-    saveDir = args.logDir + args.sub + '_' + args.task
+    subDir = os.path.join(args.logDir, args.sub)
+    if not os.path.exists(subDir):
+        os.mkdir(subDir)        
+        
+    saveDir = os.path.join(args.logDir, args.sub, args.task)
     if not os.path.exists(saveDir):
         os.mkdir(saveDir)
 
@@ -542,8 +548,8 @@ def main(args):
     # Load trained model
     start_epoch = 0
     if args.pretrain:
-        loc_g = os.path.join(args.trained_model, 'checkpoint_g.pt')
-        loc_d = os.path.join(args.trained_model, 'checkpoint_d.pt')
+        loc_g = os.path.join(args.trained_model, args.sub, 'checkpoint_g.pt')
+        loc_d = os.path.join(args.trained_model, args.sub, 'checkpoint_d.pt')
 
         if os.path.isfile(loc_g):
             print("=> loading checkpoint '{}'".format(loc_g))
@@ -560,8 +566,8 @@ def main(args):
             print("=> no checkpoint found at '{}'".format(loc_d))
 
     if args.resume:
-        loc_g = os.path.join(args.savemodel, 'checkpoint_g.pt')
-        loc_d = os.path.join(args.savemodel, 'checkpoint_d.pt')
+        loc_g = os.path.join(args.savemodel, 'checkpoint_g.pth.tar')
+        loc_d = os.path.join(args.savemodel, 'checkpoint_d.pth.tar')
 
         if os.path.isfile(loc_g):
             print("=> loading checkpoint '{}'".format(loc_g))
@@ -651,8 +657,8 @@ def main(args):
         else:
             epochs_since_improvement = 0
 
-        save_checkpoint(state_g, is_best, args.savemodel, 'checkpoint_g.pt')
-        save_checkpoint(state_d, is_best, args.savemodel, 'checkpoint_d.pt')
+        save_checkpoint(state_g, is_best, args.savemodel, 'checkpoint_g.pth.tar')
+        save_checkpoint(state_d, is_best, args.savemodel, 'checkpoint_d.pth.tar')
 
         saveData(args, val_loader, (model_g, model_d, vocoder, model_STT, decoder_STT), epoch, (Tr_losses,Val_losses))
 
@@ -663,7 +669,7 @@ def main(args):
 
 if __name__ == '__main__':
 
-    dataDir = './sample_data'
+    dataDir = './dataset'
     logDir = './TrainResult'
     
     parser = argparse.ArgumentParser(description='Hyperparams')
@@ -673,11 +679,11 @@ if __name__ == '__main__':
     parser.add_argument('--dataLoc', type=str, default=dataDir)
     parser.add_argument('--config', type=str, default='./config.json')
     parser.add_argument('--logDir', type=str, default=logDir)
-    parser.add_argument('--resume', type=bool, default=True)
+    parser.add_argument('--resume', type=bool, default=False)
     parser.add_argument('--pretrain', type=bool, default=False)
     parser.add_argument('--prefreeze', type=bool, default=False)
-    parser.add_argument('--gpuNum', type=list, default=[0,1,2])
-    parser.add_argument('--batch_size', type=int, default=52) 
+    parser.add_argument('--gpuNum', type=list, default=[0])
+    parser.add_argument('--batch_size', type=int, default=26)
     parser.add_argument('--sub', type=str, default='sub1')
     parser.add_argument('--task', type=str, default='SpokenEEG')
     parser.add_argument('--recon', type=str, default='Y_mel')
