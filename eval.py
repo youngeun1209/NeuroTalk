@@ -185,6 +185,7 @@ def main(args):
         print("=> loading checkpoint '{}'".format(loc_g))
         checkpoint_g = torch.load(loc_g, map_location='cpu')
         model_g.load_state_dict(checkpoint_g['state_dict'])
+        epoch = checkpoint_g['epoch']
     else:
         print("=> no checkpoint found at '{}'".format(loc_g))
         raise NameError('Can not find the trained model')
