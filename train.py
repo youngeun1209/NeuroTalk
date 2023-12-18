@@ -566,8 +566,8 @@ def main(args):
             print("=> no checkpoint found at '{}'".format(loc_d))
 
     if args.resume:
-        loc_g = os.path.join(args.savemodel, 'checkpoint_g.pth.tar')
-        loc_d = os.path.join(args.savemodel, 'checkpoint_d.pth.tar')
+        loc_g = os.path.join(args.savemodel, 'checkpoint_g.pt')
+        loc_d = os.path.join(args.savemodel, 'checkpoint_d.pt')
 
         if os.path.isfile(loc_g):
             print("=> loading checkpoint '{}'".format(loc_g))
@@ -657,8 +657,8 @@ def main(args):
         else:
             epochs_since_improvement = 0
 
-        save_checkpoint(state_g, is_best, args.savemodel, 'checkpoint_g.pth.tar')
-        save_checkpoint(state_d, is_best, args.savemodel, 'checkpoint_d.pth.tar')
+        save_checkpoint(state_g, is_best, args.savemodel, 'checkpoint_g.pt')
+        save_checkpoint(state_d, is_best, args.savemodel, 'checkpoint_d.pt')
 
         saveData(args, val_loader, (model_g, model_d, vocoder, model_STT, decoder_STT), epoch, (Tr_losses,Val_losses))
 
