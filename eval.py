@@ -182,10 +182,10 @@ def main(args):
     loc_d = os.path.join(saveDir, 'savemodel', 'BEST_checkpoint_d.pt')
 
     if os.path.isfile(loc_g):
-        print("=> loading checkpoint '{}'".format(loc_g))
         checkpoint_g = torch.load(loc_g, map_location='cpu')
         model_g.load_state_dict(checkpoint_g['state_dict'])
         epoch = checkpoint_g['epoch']
+        print("=> loading checkpoint '{}' at epoch {}".format(loc_g, epoch))
     else:
         print("=> no checkpoint found at '{}'".format(loc_g))
         raise NameError('Can not find the trained model')
