@@ -548,8 +548,8 @@ def main(args):
     # Load trained model
     start_epoch = 0
     if args.pretrain:
-        loc_g = os.path.join(args.trained_model, args.sub, 'checkpoint_g.pt')
-        loc_d = os.path.join(args.trained_model, args.sub, 'checkpoint_d.pt')
+        loc_g = os.path.join(args.trained_model, args.sub, 'BEST_checkpoint_g.pt')
+        loc_d = os.path.join(args.trained_model, args.sub, 'BEST_checkpoint_d.pt')
 
         if os.path.isfile(loc_g):
             print("=> loading checkpoint '{}'".format(loc_g))
