@@ -420,7 +420,8 @@ def saveData(args, test_loader, models, epoch, losses):
         # run the mdoel
         output = model_g(input)
     
-    mel_out = DTW_align(output, target)
+    # mel_out = DTW_align(output, target)
+    mel_out = output
     output_denorm = data_denorm(mel_out, data_info[0], data_info[1])
     
     wav_recon = mel2wav_vocoder(torch.unsqueeze(output_denorm[0],dim=0), vocoder, 1)
